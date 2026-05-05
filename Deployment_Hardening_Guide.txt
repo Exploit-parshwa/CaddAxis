@@ -1,0 +1,71 @@
+DEPLOYMENT HARDENING GUIDE
+Author: Antigravity Agent (DevOps Specialist)
+
+================================================================================
+PART A: GOOGLE CLOUD RUN (TESTING)
+================================================================================
+Service Goal: Containerized Testing & Staging
+Requirements: 
+- `package.json` listening on ${PORT}
+- Health Check
+
+CRITICAL SAFETY STEPS
+--------------------------------------------------------------------------------
+1. PORT CONFLICTS
+   - DO: Update start script: "start": "next start -p ${PORT:-3000}"
+   - WHY: Cloud Run sets $PORT dynamically. Hardcoded 3000 fails immediately.
+
+2. HEALTH CHECK
+   - DO: Add a simple GET route at `/api/health` that returns 200 OK.
+   - WHY: Cloud Run kills your container if it doesn't respond to pings within 10s.
+
+3. CONTAINER MEMORY
+   - DO: Use `output: 'standalone'` in `next.config.js`.
+   - WHY: Halves memory usage. Prevents OOM kills on free tier instances.
+
+4. BUILD ARGS
+   - DO: `npm install sharp` for image optimization if using next/image.
+   - WHY: Prevents runtime crash "Sharp not found" when serving optimized images.
+
+================================================================================
+PART B: HOSTINGER (PRODUCTION)
+================================================================================
+Service Goal: Shared/VPS Hosting
+Requirements:
+- Node.js Environment
+- SSL
+- PM2 Process Manager
+
+CRITICAL SAFETY STEPS
+--------------------------------------------------------------------------------
+1. FILE UPLOADS ARE FATAL
+   - DO NOT: Upload `node_modules` via FTP. It takes hours and breaks permissions.
+   - DO: Build locally (`npm run build`) -> Upload `.next`, `public`, `package.json` -> Run `npm install --production` on server.
+   
+2. PROCESS MANAGEMENT (PM2)
+   - DO NOT: Run `npm start` in SSH and close the window. Site dies.
+   - DO: `pm2 start npm --name "caddaxis" -- start`.
+   - WHY: Automatically restarts app on crash or server reboot.
+
+3. MIXED CONTENT (SSL)
+   - DO NOT: Hardcode `http://localhost:3000` in fetch calls.
+   - DO: Use environment variable `NEXT_PUBLIC_API_URL` or relative paths `/api/...`.
+   - WHY: Browser blocks HTTP requests on HTTPS sites immediately.
+
+4. DATABASE HYGIENE
+   - DO NOT: Use `root` user or empty password.
+   - DO: Create a specific user `u123_caddaxis` with specific privileges.
+   - WHY: If SQL Injection happens, they won't get root access to delete the server.
+
+5. CACHE BUSTING
+   - DO: Ensure new deployments have unique build IDs.
+   - WHY: Users with cached JS chunks get 404 errors navigation until hard refresh.
+
+================================================================================
+FINAL VERIFICATION CHECKLIST
+================================================================================
+[ ] App starts without errors locally (`npm run build && npm start`)
+[ ] Verify Page: Try inputs 'CAD123', 'ERR500', 'INVALID'
+[ ] Contact Form: Submit once, try to submit again immediately (should be blocked)
+[ ] Mobile View: Verify custom cursor is GONE
+[ ] Slow Network: Inspect with Chrome DevTools "Slow 3G" -> Check Course Skeleton UI

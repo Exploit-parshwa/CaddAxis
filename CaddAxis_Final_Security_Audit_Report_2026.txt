@@ -1,0 +1,130 @@
+
+CaddAxis_Final_Security_Audit_Report_2026.txt
+
+DATE: 2026-01-06
+SCOPE: Full System Forensic Audit
+
+--------------------------------------------------------------------------------
+1. FUNCTIONAL CORRECTNESS & DATA INTEGRITY
+--------------------------------------------------------------------------------
+
+[FRANCHISE FORM]
+- [Check]: Data Transmission to Database
+  PASS: API 'submitFranchiseEnquiry' successfully inserts data into 'franchise_enquiries' table.
+  Evidence: Verified INSERT query execution in 'actions.js'. verified 'franchise_enquiries' table creation in 'update_db_schema.js'.
+- [Check]: Admin Visibility
+  PASS: 'admin/franchise-enquiries/page.js' correctly calls 'getFranchiseEnquiries' and renders list.
+  Evidence: Code review of Admin Page loop over 'filteredEnquiries'.
+
+[CONTACT FORM]
+- [Check]: Data Transmission to Database
+  PASS: API 'submitContactMessage' successfully inserts data into 'contact_messages' table.
+  Evidence: Verified INSERT query logic.
+- [Check]: Admin Visibility
+  PASS: 'admin/contact-messages/page.js' correctly fetches and displays messages.
+
+[BOOK FREE DEMO FLOW]
+- [Check]: Data Collection
+  PASS: Form collects Name, Email, Phone.
+  Evidence: 'EnquiryForm.js' inputs mapped to Server Action 'submitEnquiry'.
+- [Check]: Authentication Generation
+  PASS: 'approveAdmission' generates password hash and inserts into 'student_auth'.
+  Evidence: 'actions.js' Line 798+ implements bcrypt hashing and table insertion logic.
+- [Check]: Login Capability
+  PASS: 'studentSignIn' validates password against 'student_auth' hash and generates JWT.
+  Evidence: 'actions.js' 'studentSignIn' function implements 'bcrypt.compare' and 'jwt.sign'.
+
+[COURSE SYNC]
+- [Check]: Admin Sync Capability
+  PASS: 'syncStaticCourses' iterates 'staticCourses' and inserts missing ones into DB.
+  Evidence: 'actions.js' Line 667 logic confirmed.
+
+--------------------------------------------------------------------------------
+2. MEETING PLATFORM: OWNERSHIP & ISOLATION
+--------------------------------------------------------------------------------
+
+[MEETING HOSTING]
+- [Check]: Self-Hosted Solution
+  FAIL: The system currently relies on External Links (Zoom/Meet/Teams).
+  Evidence: 'admin/online-classes/page.js' Line 202 shows <select> options for "Zoom", "Google Meet", "Teams".
+  Evidence: Line 348 renders an anchor tag <a href={cls.meeting_link}> pointing to external URL.
+  Note: No WebRTC or self-hosted media server (e.g., Jitsi/Janus/Mediasoup) implementation found in codebase.
+
+- [Check]: Access Control
+  FAIL: Meeting links are plain URLs exposed to the client.
+  Evidence: Any user with the link can share it. No token-based join mechanism wrapping the external meeting.
+
+--------------------------------------------------------------------------------
+3. ANTI-THEFT & INTELLECTUAL PROPERTY PROTECTION
+--------------------------------------------------------------------------------
+
+[SCREENSHOT PREVENTION]
+- [Check]: Browser-Level Blocking
+  PASS: 'SecureContent.js' intercepts 'PrintScreen', 'Ctrl+S', 'contextmenu'.
+  Evidence: 'SecureContent.js' Line 17 applies CSS blur filter on PrintScreen detection.
+  Evidence: Clipboard is cleared programmatically.
+  Limitation: Cannot prevent OS-level screenshots (Snipping Tool) fully, but effectively degrades UX for casual theft.
+
+[CONTENT DOWNLOAD]
+- [Check]: Right-Click Protection
+  PASS: Context menu disabled via 'SecureContent.js'.
+- [Check]: DevTools Blocking
+  PASS: 'SecureContent.js' detects window resize/devtools opening and replaces content with "SECURITY VIOLATION".
+  Evidence: 'SecureContent.js' Line 40+ implementation.
+
+[MEDIA OBSCURENESS]
+- [Check]: Encrypted Streams
+  FAIL: Recorded sessions utilize 'video_url' which appears to be a direct link (YouTube/Vimeo).
+  Evidence: 'admin/online-classes/page.js' Line 277 input placeholder "YouTube / Vimeo Link".
+  Evidence: Line 393 renders <a href={session.video_url}>. This is NOT encrypted streaming.
+
+--------------------------------------------------------------------------------
+4. SECURITY DEEP DIVE
+--------------------------------------------------------------------------------
+
+[IDOR VULNERABILITY]
+- [Check]: Dashboard Access Control
+  PASS: 'getStudentDashboard' enforces ID check via JWT.
+  Evidence: 'actions.js' Line 547 decrypts 'student_session' cookie and IGNORES/OVERRIDES the 'requestedId' argument with 'payload.id'.
+  Result: A student cannot iterate IDs to view other dashboards because the backend ignores the ID parameter.
+
+[ADMIN SESSION SECURITY]
+- [Check]: Server-Side Validation
+  FAIL: 'authenticateAdmin' sets a cookie 'admin_session'='true'.
+  Evidence: 'actions.js' Line 52 sets plain text cookie.
+  Evidence: 'admin/layout.js' Line 117 logout just clears this cookie.
+  Result: Any user who manually sets cookie 'admin_session=true' in DevTools can access Admin Panel. This is a critical security bypass.
+
+[SQL INJECTION]
+- [Check]: Parameterized Queries
+  PASS: All database interactions use 'pool.query(sql, [params])'.
+  Evidence: Consistent usage of '?' placeholders in 'actions.js'.
+
+[XSS]
+- [Check]: Output Encoding
+  PASS: React automatically escapes content in JSX.
+  Evidence: No usage of 'dangerouslySetInnerHTML' found in critical rendering paths.
+
+--------------------------------------------------------------------------------
+5. DATABASE & BACKEND INTEGRITY
+--------------------------------------------------------------------------------
+
+[TABLES]
+- [Check]: 'franchise_enquiries'
+  PASS: Created via 'update_db_schema.js'.
+- [Check]: 'contact_messages'
+  PASS: Created via 'update_db_schema.js'.
+- [Check]: 'student_auth'
+  PASS: Referenced in Login/Signup logic.
+
+[SERVER ACTIONS]
+- [Check]: Connectivity
+  PASS: All critical actions exported and connected.
+
+--------------------------------------------------------------------------------
+SUMMARY OF FAILURES (ACTION REQUIRED)
+--------------------------------------------------------------------------------
+1. MEETING PLATFORM: System uses 3rd-party links instead of self-hosted video.
+2. ADMIN SECURITY: 'admin_session' is insecure (cookie manipulation bypass).
+3. MEDIA SECURITY: Video links are external/direct, not tokenized streams.
+

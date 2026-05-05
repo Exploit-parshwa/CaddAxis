@@ -1,0 +1,48 @@
+FRANCHISE SYSTEM UPDATE: WALLET & RECHARGE
+Status: IMPLEMENTED
+
+1. Franchise Login Ready
+--------------------------------------------------------------------------------
+Credentials created for testing:
+- Email: ajara@caddaxis.com
+- Password: ajara123
+- Role: Franchise Admin (Center Manager)
+
+2. Wallet System Implemented
+--------------------------------------------------------------------------------
+- Real-time Balance: Added `wallet_balance` to database.
+- Dashboard: Displays current balance prominently.
+- Instant Recharge: New "Recharge Wallet" page supports mock instant payments via UPI/QR.
+  - Flow: Select Amount -> Scan QR (Mock) -> "Check Payment" -> Instant Credit.
+  - Status: Fully Functional (Simulated).
+
+3. Certificate Payments
+--------------------------------------------------------------------------------
+- Cost: ₹100 per certificate (deducted automatically).
+- Logic: 
+  - If Balance >= 100: Deduct & Generate.
+  - If Balance < 100: Show "Insufficient Balance" & redirect to Recharge page.
+- Transaction Log: All deductions and recharges are logged in `transactions` table.
+
+4. Map API Key Location
+--------------------------------------------------------------------------------
+To enable the Google Map in the admin panel:
+Option A (Recommended): 
+   Add this line to your `.env` file:
+   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_api_key_here
+
+Option B (Hardcode - Not Recommended):
+   Edit `src/components/FranchiseMap.js` at line 44.
+
+5. Database Schema Changes
+--------------------------------------------------------------------------------
+- Added `wallet_balance` to `franchises` table.
+- Created `transactions` table for audit log.
+- Added `franchise_id` links to `certificates` and `students`.
+
+6. How to Run
+--------------------------------------------------------------------------------
+1. Ensure XAMPP MySQL is running.
+2. Run `npm run dev` in terminal.
+3. Go to http://localhost:3000/admin/login
+4. Login with `ajara@caddaxis.com` / `ajara123`.

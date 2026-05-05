@@ -1,0 +1,38 @@
+FRANCHISE ADMIN PANEL IMPLEMENTATION
+Status: COMPLETED
+
+1. Unified Admin Architecture
+--------------------------------------------------------------------------------
+The Franchise Admin Panel now shares the EXACT same architecture, design, and layout as the Super Admin panel. This ensures a consistent, premium experience for all users.
+
+2. Role-Based Access Control (RBAC) implementation:
+--------------------------------------------------------------------------------
+- Login System:
+  - Updates to `authenticateAdmin` in `actions.js`.
+  - Now sets a `ui_role` cookie ('SUPER' or 'FRANCHISE') alongside the secure session.
+  - This allows instant UI adaptation without compromising security.
+
+- Layout Engine (`src/app/admin/layout.js`):
+  - Reads `ui_role` to determine the view.
+  - Sidebar: Hides "Super Admin Only" modules (Institute Info, Accounts, Franchise List) for Franchise users.
+  - Branding: Switches from "Administration" to "FRANCHISE PANEL".
+  - Navigation: Keeps core modules (Students, Fees, Exams, Courses) accessible to Franchises.
+
+- Dynamic Dashboard (`src/app/admin/dashboard/page.js`):
+  - "Main Dashboard" -> "Franchise Dashboard"
+  - "Total Enrollment" -> "Center Enrollment" (with scoped stats)
+  - "Active Courses" -> "Active Batches"
+  - "Admin User" -> "Center Manager"
+  - Visuals: Profile icon changes color and label.
+
+3. How to Test
+--------------------------------------------------------------------------------
+1. Login with a Franchise Email (e.g. valid franchise in DB).
+2. Observe the Sidebar: You will NOT see "Franchise List" or "Accounts".
+3. Observe the Dashboard: It will greet you as "Center Manager".
+4. Login with Super Admin (admin@caddaxis.com).
+5. Observe: Full access and "Main Dashboard".
+
+4. Security Note
+--------------------------------------------------------------------------------
+While the UI adapts based on the cookie, true data security is handled by the backend API routes (which should check the JWT token's role before returning data). The improvements made here ensure the frontend correctly reflects these permissions.

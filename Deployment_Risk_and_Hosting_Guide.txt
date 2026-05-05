@@ -1,0 +1,78 @@
+DEPLOYMENT RISK & HOSTING GUIDE
+Author: Antigravity Agent (DevOps Failure Auditor)
+
+================================================================================
+PART A: GOOGLE CLOUD CONSOLE (TESTING)
+================================================================================
+Service Recommendation: **Cloud Run** (Containerized) 
+Avoid 'App Engine' (Legacy) and 'Compute Engine' (Too manual) for Next.js.
+
+WARN: NEXT.JS ON CLOUD RUN
+--------------------------------------------------------------------------------
+1. THE PORT TRAP
+   - Failure: Cloud Run expects your app to listen on the environment variable `PORT` (usually 8080).
+   - The Fix: Update `package.json` -> `"start": "next start -p ${PORT:-3000}"`.
+   - If User Fails: The deployment will succeed, but the URL will return "503 Service Unavailable" forever.
+
+2. MISSING SECRETS
+   - Failure: You forget to add `DB_HOST`, `DB_USER`, `DB_PASS` in the "Variables & Secrets" tab.
+   - Result: App starts -> User loads page -> generic "500 Internal Server Error" (Silent Crash).
+
+3. COLD STARTS
+   - Failure: Free tier allows instances to "scale to zero".
+   - Result: First user waits 15-30 seconds for the app to wake up.
+   - User perception: "Site is down."
+
+4. IMAGE OPTIMIZATION
+   - Failure: `next/image` requires a sharp library or specific CPU features.
+   - Result: Images break or build fails with "Error: 'sharp' is required".
+   - Fix: `npm install sharp` before deploying.
+
+================================================================================
+PART B: HOSTINGER (PRODUCTION)
+================================================================================
+Scenario: Shared Hosting / CPS (CyberPanel) / VPS
+Most users buy the "Premium Web Hosting" thinking it runs Node.js. It's painful.
+
+CRITICAL FAILURE POINTS
+--------------------------------------------------------------------------------
+
+1. THE "NODE_MODULES" UPLOAD DISASTER
+   - Mistake: User drags the entire `CaddAxis` folder into public_html via FileZilla.
+   - Consequence: 50,000+ tiny files take 4 hours to upload. Half fail. Permissions break.
+   - Correct Way: `npm run build` locally -> Upload ONLY `.next`, `public`, `package.json`, `next.config.js`. -> Run `npm install --production` on server.
+
+2. THE "MIXED CONTENT" BLOCKER
+   - Scenario: You buy SSL (HTTPS) on Hostinger.
+   - Bug: Your code has `fetch('http://localhost:3000/api/...')` hardcoded.
+   - Result: Browser blocks ALL requests. "This request has been blocked; the content must be served over HTTPS."
+   - Fix: Use relative paths `/api/...` or an environment variable `NEXT_PUBLIC_API_URL`.
+
+3. THE DATABASE DISCONNECT
+   - Mistake: Developing with `localhost` as DB host.
+   - Production Reality: Hostinger DB host is often `127.0.0.1` or a specific IP, AND the username usually has a prefix like `u123456789_admin`.
+   - Result: "Access Denied for user 'root'@'localhost'".
+
+4. PERMANENT DATA LOSS (FILES)
+   - Mistake: Storing uploaded student avatars in `/public/uploads`.
+   - Reality: If you re-deploy or use a CI/CD pipeline, that folder might be wiped or reset.
+   - Fix: Use S3 / Cloudinary for user content. Do NOT store state on the disk.
+
+5. "IT WORKS, THEN DIES" (PM2)
+   - Scenario: You start the app with `npm start` in SSH and close the window.
+   - Result: Site dies immediately.
+   - Fix: You MUST use a process manager: `pm2 start npm --name "caddaxis" -- start`.
+
+6. CACHE POISONING
+   - Scenario: You fix a bug and re-deploy. Users still see the old broken version.
+   - Cause: Browser caching + Next.js distinct build IDs.
+   - Risks: Users get "404 chunks" errors when navigating until they hard-refresh.
+
+================================================================================
+FINAL DEPLOYMENT CHECKLIST (DO NOT SKIP)
+================================================================================
+[ ] Run `npm run build` LOCALLY. If it fails here, it fails there.
+[ ] Check `next.config.js` for "output: 'standalone'" (Saves RAM).
+[ ] Verify all `console.log` with sensitive info are removed.
+[ ] Ensure `process.env.NEXT_PUBLIC_...` is actually accessible.
+[ ] Create a `robots.txt` so Google doesn't index your broken dev pages.

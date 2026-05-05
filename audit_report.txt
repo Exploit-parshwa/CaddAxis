@@ -1,0 +1,99 @@
+
+PROJECT AUDIT & GAP ANALYSIS REPORT
+DATE: 2026-01-06
+SCOPE: Full System (Frontend, Backend, Database, Security)
+
+--------------------------------------------------------------------------------
+1. TEST SUMMARY
+--------------------------------------------------------------------------------
+An inspection of the CaddAxis application revealed a disparity between the visual 
+readiness of the frontend/admin panel and the backend implementation. While 
+Course Management and basic Student Enrollment are functional, the marketing 
+forms (Franchise, Contact) and the Admin-User lifecycle have significant breaks.
+
+Status Overview:
+- Public Pages (Home, Courses): Functional.
+- Marketing Forms (Franchise, Contact): VISUAL ONLY (Non-functional).
+- Admin Panel: UI exists for all modules, but specific modules crash or are empty.
+- Student Dashboard: Functional but has security flaws.
+
+--------------------------------------------------------------------------------
+2. CRITICAL ISSUES FOUND
+--------------------------------------------------------------------------------
+A. MARKETING FORMS DATA LOSS
+   - franchise/page.js: The "Submit Proposal" form is static HTML. It has no 
+     'action' or 'onSubmit' handler. Clicking submit reloads the page. 
+     PROBABILITY: 100% Data Loss (Submissions never leave the browser).
+   - contact/page.js: The "Send Message" form is static HTML. No data is sent.
+     PROBABILITY: 100% Data Loss.
+
+B. ADMIN PANEL BREAKAGE
+   - Views for 'Franchise Enquiries' and 'Contact Messages' exist in the 
+     admin folder, but they attempt to import backend functions (getFranchiseEnquiries, 
+     getContactMessages) that DO NOT EXIST in 'actions.js'.
+   - This causes these admin pages to crash or fail to build.
+
+C. "GHOST" ADMISSIONS (Enquiry -> Student Gap)
+   - "Book Free Demo" users are saved to the 'students' table via 'submitEnquiry'.
+   - HOWEVER, they have NO record in the 'student_auth' table (where passwords live).
+   - Even if an Admin "Approves" them (sets status='enrolled'), these users 
+     cannot log in because the authentication system checks 'student_auth', 
+     which these records lack. They are permanently locked out.
+
+--------------------------------------------------------------------------------
+3. SECURITY REPORT
+--------------------------------------------------------------------------------
+STRENGTHS:
+- SQL Injection Protection: Consistent use of parameterized queries (mysql2/promise).
+- Password Storage: Uses 'bcryptjs' for hashing (in standard signup flow).
+
+WEAKNESSES & VULNERABILITIES:
+- IDOR (Insecure Direct Object Reference) [CRITICAL]: 
+  The Server Action 'getStudentDashboard(studentId)' accepts a studentId argument 
+  without verifying if the requesting user is that student. A malicious user 
+  could theoretically scrape other students' data (Payments, Marks) by iterating IDs.
+
+- Admin Authentication [HIGH]: 
+  Admin authentication appears to rely on a simple client-side cookie ('admin_session'). 
+  There is no evidence of server-side session validation or secure token verification 
+  in the code inspected. Access logic seems fragile.
+
+--------------------------------------------------------------------------------
+4. MISSING ELEMENTS
+--------------------------------------------------------------------------------
+- DATABASE SCHEMA:
+  - Table 'franchise_enquiries' is missing.
+  - Table 'contact_messages' is missing.
+
+- SERVER ACTIONS:
+  - submitFranchiseForm()
+  - submitContactForm()
+  - getFranchiseEnquiries()
+  - getContactMessages()
+  - updateFranchiseStatus() / updateContactStatus()
+
+- WORKFLOWS:
+  - "Convert Enquiry to Student": A mechanism to generate a password/auth record 
+    for users who signed up via "Book Demo" when they are approved.
+
+--------------------------------------------------------------------------------
+5. DATA FLOW VERIFICATION
+--------------------------------------------------------------------------------
+[Franchise Application]
+User Input -> Browser (Stops here) -> X Server -> X Database -> X Admin Panel
+STATUS: FAILED
+
+[Contact Message]
+User Input -> Browser (Stops here) -> X Server -> X Database -> X Admin Panel
+STATUS: FAILED
+
+[Demo Booking]
+User Input -> submitEnquiry() -> 'students' Table (Success) -> Admin Panel (Visible) -> WhatsApp (Sent)
+STATUS: PARTIAL SUCCESS (Data saved, but User Account invalid due to missing Auth record)
+
+--------------------------------------------------------------------------------
+6. ADMIN PANEL GAPS
+--------------------------------------------------------------------------------
+- No functional view for reviewing Franchise Applications (Backend missing).
+- No functional view for Reading Contact Messages (Backend missing).
+- "Approve Admission" button updates status but does not generate login credentials.

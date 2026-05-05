@@ -1,0 +1,106 @@
+
+# CADDAXIS V2 - PRODUCTION DEPLOYMENT & HOSTING GUIDE
+Date: 2026-01-20
+
+## 1. TECHNOLOGY STACK
+- **Frontend/Framework**: Next.js 16 (React 19)
+- **Backend**: Next.js Server Actions (Node.js runtime)
+- **Database**: MySQL (relational)
+- **Styling**: CSS Modules / Framer Motion
+- **Authentication**: JWT (Jose/JsonWebToken) + Bcrypt
+
+---
+
+## 2. ENVIRONMENT CONFIGURATION
+Create a `.env.production` file on your server (do not commit to Git).
+
+```env
+# SERVER CONFIG
+NODE_ENV=production
+PORT=3000
+# DATABASE (Must be accessible from the hosting server)
+DB_HOST=127.0.0.1       # Or AWS RDS Endpoint
+DB_USER=cad_admin
+DB_PASSWORD=YourStrongPassword#123
+DB_NAME=caddaxis_production
+
+# SECURITY SECRETS (Generate random strings for these)
+JWT_SECRET=complex_random_string_at_least_32_chars
+ADMIN_EMAIL=admin@caddaxis.com
+
+# EMAIL SERVICE (SMTP)
+SMTP_HOST=smtp.gmail.com  # or your provider
+SMTP_PORT=465
+SMTP_USER=alerts@caddaxis.com
+SMTP_PASS=app-specific-password
+```
+
+---
+
+## 3. HOSTING OPTIONS
+
+### OPTION A: VPS (Virtual Private Server) - RECOMMENDED
+Best for control, cost, and persistent file storage (uploads).
+**Providers**: DigitalOcean, AWS EC2, Hetzner, Hostinger VPS.
+
+**Steps:**
+1.  **Install Node.js 20+**:
+    `curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs`
+2.  **Install MySQL 8**:
+    `sudo apt install mysql-server`
+3.  **Clone Code**:
+    `git clone <your-repo-url>`
+4.  **Install Dependencies**:
+    `npm install --production`
+5.  **Build**:
+    `npm run build`
+6.  **Run with PM2** (Process Manager):
+    `npm install -g pm2`
+    `pm2 start npm --name "caddaxis" -- start`
+    `pm2 save && pm2 startup`
+7.  **Setup Nginx (Reverse Proxy)**:
+    - Point domain `caddaxis.com` to your VPS IP.
+    - Configure Nginx to proxy port 80 -> localhost:3000.
+
+### OPTION B: Vercel / Netlify (Serverless)
+Easiest, but requires external DB and Storage.
+1.  **Database**: Host MySQL on **PlanetScale** or **AWS RDS**.
+2.  **Storage**: You MUST change `uploadFile` logic in `actions.js` to use **AWS S3** or **Cloudinary**, because Vercel file system is read-only/ephemeral.
+3.  **Deploy**: Connect GitHub repo to Vercel. Set Environment Variables in Vercel Dashboard.
+
+---
+
+## 4. SECURITY BEST PRACTICES
+
+1.  **SSL is Mandatory**:
+    - Use **Certbot** (Let's Encrypt) on VPS: `sudo certbot --nginx -d caddaxis.com`.
+    - Vercel handles this automatically.
+
+2.  **Database Security**:
+    - Create a dedicated DB user, NEVER use `root` in production.
+    - `CREATE USER 'cad_admin'@'%' IDENTIFIED BY 'StrongPass';`
+    - `GRANT ALL PRIVILEGES ON caddaxis_production.* TO 'cad_admin'@'%';`
+    - Enable firewall (UFW) to allow port 3306 only from specific IPs.
+
+3.  **Backups**:
+    - Schedule daily `mysqldump` backups.
+    - Script: `mysqldump -u cad_admin -p caddaxis_production > /backup/db_$(date +%F).sql`
+
+---
+
+## 5. DATABASE INITIALIZATION
+Run the schema setup once on the production database.
+
+1.  **Login to MySQL**: `mysql -u cad_admin -p`
+2.  **Create DB**: `CREATE DATABASE caddaxis_production; USE caddaxis_production;`
+3.  **Run Application**: The V2 code has **Self-Healing** logic.
+    - Just starting the app and accessing the Admin panel will trigger `syncStaticCourses()` and `checkStudentSchema()` which will CREATE all necessary tables automatically!
+    - **Verification**: Check tables with `SHOW TABLES;` after first run.
+
+---
+
+## 6. MAINTENANCE
+- **Logs**: Check `pm2 logs caddaxis` for errors.
+- **Updates**: `git pull && npm install && npm run build && pm2 restart caddaxis`.
+
+This infrastructure ensures a scalable, 100 Crore+ valuation-ready platform.

@@ -1,0 +1,116 @@
+.nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    height: var(--header-height);
+    background: white;
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-small);
+}
+
+.content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.logo {
+    font-size: 1.75rem;
+    font-weight: 700;
+    font-family: 'Oswald', sans-serif;
+    color: var(--primary-dark);
+    text-transform: uppercase;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.logoSpan {
+    color: var(--secondary);
+}
+
+.menuDesktop {
+    display: none;
+    align-items: center;
+    gap: 2.5rem;
+}
+
+@media (min-width: 992px) {
+    .menuDesktop {
+        display: flex;
+    }
+}
+
+.link {
+    color: var(--text-main);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+}
+
+.link:hover {
+    color: var(--primary);
+}
+
+/* Dropdown */
+.dropdownContainer {
+    position: relative;
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.dropdown {
+    position: absolute;
+    top: var(--header-height);
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    width: 600px;
+    padding: 2rem;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--primary);
+    display: none;
+    z-index: 1001;
+}
+
+.dropdownContainer:hover .dropdown {
+    display: block;
+    animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+.mobileToggle {
+    display: block;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-main);
+}
+
+@media (min-width: 992px) {
+    .mobileToggle {
+        display: none;
+    }
+}
